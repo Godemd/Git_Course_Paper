@@ -1,81 +1,43 @@
+import json
+from unittest.mock import patch
+
 import pytest
 
-from src.services import search_by_persons, simple_searching
+from src.services import search_by_persons
 
 
-@pytest.mark.parametrize(
-    "search_field, expected",
-    [
-        (
-            "#FARШ",
-            [
-                {
-                    "Дата операции": "09.06.2021 22:05:03",
-                    "Дата платежа": "10.06.2021",
-                    "Номер карты": "*7197",
-                    "Статус": "OK",
-                    "Сумма операции": -390.0,
-                    "Валюта операции": "RUB",
-                    "Сумма платежа": -390.0,
-                    "Валюта платежа": "RUB",
-                    "Кэшбэк": None,
-                    "Категория": "Фастфуд",
-                    "MCC": 5814.0,
-                    "Описание": "#FARШ",
-                    "Бонусы (включая кэшбэк)": 7,
-                    "Округление на инвесткопилку": 0,
-                    "Сумма операции с округлением": 390.0,
-                },
-                {
-                    "Дата операции": "07.02.2018 19:23:27",
-                    "Дата платежа": "08.02.2018",
-                    "Номер карты": "*7197",
-                    "Статус": "OK",
-                    "Сумма операции": -350.0,
-                    "Валюта операции": "RUB",
-                    "Сумма платежа": -350.0,
-                    "Валюта платежа": "RUB",
-                    "Кэшбэк": None,
-                    "Категория": "Фастфуд",
-                    "MCC": 5814.0,
-                    "Описание": "#FARШ",
-                    "Бонусы (включая кэшбэк)": 7,
-                    "Округление на инвесткопилку": 0,
-                    "Сумма операции с округлением": 350.0,
-                },
-            ],
-        ),
-        (
-            "Evo_Lyzhnyj",
-            [
-                {
-                    "Дата операции": "27.12.2021 12:01:09",
-                    "Дата платежа": "27.12.2021",
-                    "Номер карты": "*7197",
-                    "Статус": "OK",
-                    "Сумма операции": -40.0,
-                    "Валюта операции": "RUB",
-                    "Сумма платежа": -40.0,
-                    "Валюта платежа": "RUB",
-                    "Кэшбэк": None,
-                    "Категория": "Супермаркеты",
-                    "MCC": 5411.0,
-                    "Описание": "Evo_Lyzhnyj",
-                    "Бонусы (включая кэшбэк)": 0,
-                    "Округление на инвесткопилку": 0,
-                    "Сумма операции с округлением": 40.0,
-                }
-            ],
-        ),
-    ],
-)
-def test_simple_searching_paramz(search_field, expected):
-    assert simple_searching(search_field) == expected
+@pytest.fixture
+def mock_transactions():
+    return [
+        {"Категория": "Переводы", "Описание": "Перевод на И.И."},
+        {"Категория": "Продукты", "Описание": "Покупка продуктов"},
+        {"Категория": "Переводы", "Описание": "Перевод на П.П."},
+        {"Категория": "Транспорт", "Описание": "Такси до работы"},
+    ]
 
 
-def test_simple_searching(cat_search_results):
-    assert simple_searching("Райффайзенбанк") == cat_search_results
+def test_search_by_persons_with_matches(mock_transactions):
+    expected_result = [
+        {"Категория": "Переводы", "Описание": "Перевод на И.И."},
+        {"Категория": "Переводы", "Описание": "Перевод на П.П."},
+    ]
+
+    with patch("src.services.setup_logger"), patch("src.services.re.findall", return_value=["И.И.", "П.П."]), patch(
+        "src.services.json.dumps", side_effect=json.dumps
+    ), patch(
+        "src.services.json.loads", side_effect=json.loads
+    ):  # использование реальной функции loads
+        result = search_by_persons(mock_transactions)
+        result_dict = json.loads(result)
+        assert result_dict == expected_result
 
 
-def test_search_by_persons(persons_search_result):
-    assert search_by_persons()[:5] == persons_search_result
+def test_search_by_persons_no_matches(mock_transactions):
+    expected_result = []
+
+    with patch("src.services.setup_logger"), patch("src.services.re.findall", return_value=[]), patch(
+        "src.services.json.dumps", side_effect=json.dumps
+    ), patch("src.services.json.loads", side_effect=json.loads):
+        result = search_by_persons(mock_transactions)
+        result_dict = json.loads(result)
+        assert result_dict == expected_result

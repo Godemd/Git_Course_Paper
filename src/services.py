@@ -1,62 +1,56 @@
+import json
 import re
 
-from src.utils import get_json_from_dataframe, read_data_transactions, setup_logger
+from src.utils import setup_logger
 
 logger = setup_logger("services")
 
 
-def simple_searching(search_field: str, file_path: str = "data/operations.xls") -> list[dict]:
+def simple_searching(search_field: str, transactions: list[dict]) -> str:
     """
     Функция для поиска операций по полю поиска в описании операции или в категории.
     Аргументы:
         `search_field` (str): Поле поиска
-        `file_path` (str): Путь до файла
+        `transactions` (list[dict]): Список операций
     Возвращает:
-        `list[dict]`: Список операций
+        `str`: JSON-строка с результатами поиска
     """
 
     search_field = search_field.lower()
-    all_op_data = get_json_from_dataframe(read_data_transactions(file_path))
 
     tmp = []
-    for op in all_op_data:
-        op_category = op["Категория"] or " "
-        op_descr = op["Описание"] or " "
+    for op in transactions:
+        op_category = op.get("Категория", " ")
+        op_descr = op.get("Описание", " ")
 
-        if search_field in op_category.lower() or search_field in op_descr.lower():
+        if (op_category and search_field in op_category.lower()) or (op_descr and search_field in op_descr.lower()):
             tmp.append(op)
 
     logger.info(f"В поиск передано: {search_field}. Найдено совпадений: {len(tmp)}")
 
-    return tmp
+    return json.dumps(tmp, ensure_ascii=False, indent=4)
 
 
-def search_by_persons(file_path: str = "data/operations.xls") -> list[dict]:
+def search_by_persons(transactions: list[dict]) -> str:
     """
     Функция возвращает список операций физическим лицам
-
     Аргументы:
-        `file_path` (str): Путь до файла
+        `transactions` (list[dict]): Список операций
     Возвращает:
-        `list[dict]`: Список операций
+        `str`: JSON-строка с результатами поиска
     """
 
     tmp = []
-    op_data = get_json_from_dataframe(read_data_transactions(file_path))
 
-    for op in op_data:
-        if op["Категория"] != "Переводы":
+    for op in transactions:
+        if op.get("Категория") != "Переводы":
             continue
 
         regex_pattern = r"\w* [\w]{1}\."
-        result = re.findall(regex_pattern, op["Описание"])
+        result = re.findall(regex_pattern, op.get("Описание", ""))
         if result:
             tmp.append(op)
 
     logger.info(f"Найдено совпадений: {len(tmp)}")
 
-    return tmp
-
-
-if __name__ == "__main__":
-    print(simple_searching("колхоз"))
+    return json.dumps(tmp, ensure_ascii=False, indent=4)

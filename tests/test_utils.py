@@ -5,7 +5,16 @@ from unittest.mock import MagicMock, mock_open, patch
 import pandas as pd
 import pytest
 
-from src.utils import get_json_from_dataframe, read_data_transactions, setup_logger
+from src.utils import (
+    get_currency_stocks,
+    get_expences_categories,
+    get_expences_income,
+    get_income_categories,
+    get_json_from_dataframe,
+    get_operations_by_date_range,
+    read_data_transactions,
+    setup_logger,
+)
 
 
 def test_setup_logger():
@@ -97,7 +106,8 @@ def test_read_xls_success(mock_logger, mock_exists, mock_read_excel):
 @patch("os.path.exists", return_value=True)
 @patch("src.utils.logger")
 def test_read_transactions_file_unsupported_format(mock_logger, mock_exists):
-    """Проверяет, что функция read_data_transactions генерирует NotImplementedError, если формат файла не поддерживается."""
+    """Проверяет, что функция read_data_transactions генерирует NotImplementedError,
+    если формат файла не поддерживается."""
     with pytest.raises(NotImplementedError):
         read_data_transactions("test.txt")
     mock_logger.warning.assert_called_once_with("Файл test.txt не поддерживается")
@@ -119,3 +129,88 @@ def mock_open(read_data):
             return self.read_data
 
     return MagicMock(return_value=MockFile(read_data))
+
+
+@patch("src.utils.read_data_transactions")
+@patch("src.utils.get_json_from_dataframe")
+def test_get_operations_by_date_range(mock_get_json_from_dataframe, mock_read_data_transactions):
+    # Mock data
+    mock_operations = [
+        {"Дата операции": "22.05.2020 12:00:00", "Категория": "Продукты", "Статус": "OK", "Сумма платежа": -1000},
+        {"Дата операции": "22.05.2020 15:00:00", "Категория": "Премия", "Статус": "OK", "Сумма платежа": 1000},
+    ]
+    mock_get_json_from_dataframe.return_value = mock_operations
+    mock_read_data_transactions.return_value = "mock_dataframe"
+
+    # Test case 1: Monthly operations
+    result_monthly = get_operations_by_date_range("22.05.2020", "M")
+    assert len(result_monthly) == 2
+
+    # Test case 2: Weekly operations
+    result_weekly = get_operations_by_date_range("22.05.2020", "W")
+    assert len(result_weekly) == 2
+
+    # Test case 3: Yearly operations
+    result_yearly = get_operations_by_date_range("22.05.2020", "Y")
+    assert len(result_yearly) == 2
+
+    # Test case 4: All time operations
+    result_all = get_operations_by_date_range("22.05.2020", "ALL")
+    assert len(result_all) == 2
+
+
+def test_get_expences_categories():
+    # Mock data
+    mock_expences_categories = {"Продукты": 1000, "Премия": 500}
+
+    result = get_expences_categories(mock_expences_categories)
+    assert result["total_amount"] == 1500
+    assert len(result["main"]) == 2
+    assert len(result["transfers_and_cash"]) == 0
+
+
+def test_get_income_categories():
+    # Mock data
+    mock_income_categories = {"Зарплата": 3000, "Дивиденды": 1000}
+
+    result = get_income_categories(mock_income_categories)
+    assert result["total_amount"] == 4000
+    assert len(result["main"]) == 2
+
+
+def test_get_expences_income():
+    # Mock data
+    mock_operations = [
+        {"Дата операции": "22.05.2020 12:00:00", "Категория": "Продукты", "Статус": "OK", "Сумма платежа": -1000},
+        {"Дата операции": "22.05.2020 15:00:00", "Категория": "Премия", "Статус": "OK", "Сумма платежа": 1000},
+    ]
+
+    result_expences, result_income = get_expences_income(mock_operations)
+    assert result_expences["total_amount"] == 1000
+    assert result_income["total_amount"] == 1000
+
+
+@patch("src.utils.read_user_settings")
+@patch("src.utils.get_currency_price")
+@patch("src.utils.get_stock_price")
+def test_get_currency_stocks(mock_get_stock_price, mock_get_currency_price, mock_read_user_settings):
+    # Mock data
+    mock_read_user_settings.return_value = {"user_currencies": ["USD", "EUR"], "user_stocks": ["AAPL", "GOOGL"]}
+    mock_get_currency_price.side_effect = lambda x: 75.0 if x == "USD" else 85.0
+    mock_get_stock_price.side_effect = lambda x: 300.0 if x == "AAPL" else 1500.0
+
+    result_currency, result_stocks = get_currency_stocks("mock_file_path")
+    assert len(result_currency) == 2
+    assert len(result_stocks) == 2
+
+    # Check currency rates
+    assert result_currency[0]["currency"] == "USD"
+    assert result_currency[0]["rate"] == 75.0
+    assert result_currency[1]["currency"] == "EUR"
+    assert result_currency[1]["rate"] == 85.0
+
+    # Check stock prices
+    assert result_stocks[0]["stock"] == "AAPL"
+    assert result_stocks[0]["price"] == 300.0
+    assert result_stocks[1]["stock"] == "GOOGL"
+    assert result_stocks[1]["price"] == 1500.0
