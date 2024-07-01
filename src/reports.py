@@ -18,7 +18,6 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date: str | 
     Возвращает:
         `pd.DataFrame`: DataFrame с тратами по заданной категории за последние три месяца (от переданной даты)
     """
-
     # Определняем дату в случае если её не передали. Берем текущую дату(сегодняшнюю)
     if not date:
         date = str(datetime.datetime.now()).rsplit(".", 1)[0]  # Отсекаем миллисекунды
@@ -37,6 +36,6 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date: str | 
     # Фильтруем сначала операции подходящие по дате. Далее по категории (разделен на 2 т.к. длинное выражение)
     filtered_df = df.loc[df["Дата операции"].between(left_date.strftime("%Y-%m-%d"), right_date.strftime("%Y-%m-%d"))]
     filtered_df = filtered_df.loc[df["Категория"] == category]
+    filtered_df["Дата операции"] = filtered_df["Дата операции"].dt.strftime("%Y.%m.%d %H:%M:%S")
 
-    logger.info(f"расходы по категориям: {filtered_df}")
     return filtered_df

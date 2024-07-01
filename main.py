@@ -21,7 +21,7 @@ if __name__ == "__main__":
     print(search_by_persons(transactions_list))
     print("Конец работы функции")
 
-    # # Пример работы функций для "Отчеты" - "Траты по категории"
+    # Пример работы функций для "Отчеты" - "Траты по категории"
     print('Пример работы функций для "Отчеты" - "Траты по категории"')
     df = read_data_transactions("data/operations.xls")
     spending_df = spending_by_category(df, "Топливо", "15.02.2018")

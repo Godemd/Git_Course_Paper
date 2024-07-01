@@ -5,16 +5,8 @@ from unittest.mock import MagicMock, mock_open, patch
 import pandas as pd
 import pytest
 
-from src.utils import (
-    get_currency_stocks,
-    get_expences_categories,
-    get_expences_income,
-    get_income_categories,
-    get_json_from_dataframe,
-    get_operations_by_date_range,
-    read_data_transactions,
-    setup_logger,
-)
+from src.utils import (get_currency_stocks, get_expences_categories, get_expences_income, get_income_categories,
+                       get_json_from_dataframe, get_operations_by_date_range, read_data_transactions, setup_logger)
 
 
 def test_setup_logger():
